@@ -99,6 +99,24 @@ def db_error_response(trace_id: str):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Store Intelligence API",
+        "version": "1.0.0",
+        "store": "STORE_BLR_002",
+        "docs": "/docs",
+        "endpoints": [
+            "POST /events/ingest",
+            "GET /stores/STORE_BLR_002/metrics",
+            "GET /stores/STORE_BLR_002/funnel",
+            "GET /stores/STORE_BLR_002/heatmap",
+            "GET /stores/STORE_BLR_002/anomalies",
+            "GET /health",
+        ],
+    }
+
+
 @app.post("/events/ingest", response_model=IngestResponse, status_code=200)
 async def ingest(request: Request, payload: IngestRequest, db: Session = Depends(get_db)):
     trace_id = getattr(request.state, "trace_id", "N/A")
