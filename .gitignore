@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# ML model weights (downloaded at runtime)
+*.pt
+*.pth
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data — keep structure but not generated outputs
+data/events.jsonl
+data/clips/*.mp4

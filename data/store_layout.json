@@ -1,0 +1,24 @@
+{
+  "stores": [
+    {
+      "store_id": "STORE_BLR_002",
+      "store_name": "Brigade_Bangalore",
+      "city": "Bangalore",
+      "open_hours": {"open": "10:00", "close": "22:00"},
+      "cameras": [
+        {"camera_id": "CAM_ENTRY_01", "type": "entry", "zone_coverage": ["ENTRY", "EXIT"]},
+        {"camera_id": "CAM_FLOOR_02", "type": "floor", "zone_coverage": ["SKINCARE", "MAKEUP", "HAIRCARE", "PERSONAL_CARE"]},
+        {"camera_id": "CAM_BILLING_03", "type": "billing", "zone_coverage": ["BILLING", "BILLING_QUEUE"]}
+      ],
+      "zones": [
+        {"zone_id": "ENTRY",         "zone_name": "Entry/Exit Threshold",  "camera_id": "CAM_ENTRY_01",   "sku_zone": null},
+        {"zone_id": "SKINCARE",      "zone_name": "Skincare Zone",          "camera_id": "CAM_FLOOR_02",   "sku_zone": "SKINCARE"},
+        {"zone_id": "MAKEUP",        "zone_name": "Makeup Zone",            "camera_id": "CAM_FLOOR_02",   "sku_zone": "MAKEUP"},
+        {"zone_id": "HAIRCARE",      "zone_name": "Haircare Zone",          "camera_id": "CAM_FLOOR_02",   "sku_zone": "HAIRCARE"},
+        {"zone_id": "PERSONAL_CARE", "zone_name": "Personal Care Zone",     "camera_id": "CAM_FLOOR_02",   "sku_zone": "PERSONAL_CARE"},
+        {"zone_id": "BILLING",       "zone_name": "Billing Counter",        "camera_id": "CAM_BILLING_03", "sku_zone": "BILLING"},
+        {"zone_id": "BILLING_QUEUE", "zone_name": "Billing Queue Area",     "camera_id": "CAM_BILLING_03", "sku_zone": "BILLING"}
+      ]
+    }
+  ]
+}

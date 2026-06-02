@@ -1,0 +1,164 @@
+# Store Intelligence API — Apex Retail
+
+End-to-end pipeline: CCTV footage → structured events → live analytics API.
+
+## Quick Start (5 commands)
+
+```bash
+git clone <repo-url> store-intelligence && cd store-intelligence
+python -m venv venv && venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+python pipeline/seed_events.py                         # generate events from POS data (no clips needed)
+uvicorn app.main:app --reload                          # API at http://localhost:8000
+```
+
+**Or with Docker:**
+```bash
+docker compose up
+```
+
+## Run the Detection Pipeline (against real CCTV clips)
+
+The CCTV clips are in `CCTV Footage-20260529T160731Z-3-00144614ea/CCTV Footage/` as `CAM 1.mp4` through `CAM 5.mp4`.
+
+**Option A — clips auto-discovered (recommended):**
+```bash
+python pipeline/detect.py \
+  --store STORE_BLR_002 \
+  --layout data/store_layout.json \
+  --clips data/clips \
+  --output data/events.jsonl \
+  --start 2026-04-10T10:00:00Z
+```
+The pipeline auto-discovers clips from the `CCTV Footage` folder if `data/clips/` is empty.
+
+**Option B — point directly at the footage folder:**
+```bash
+python pipeline/detect.py \
+  --store STORE_BLR_002 \
+  --layout data/store_layout.json \
+  --clips "../CCTV Footage-20260529T160731Z-3-00144614ea/CCTV Footage" \
+  --output data/events.jsonl \
+  --start 2026-04-10T10:00:00Z
+```
+
+**Windows (batch):**
+```bat
+pipeline\run.bat
+```
+
+YOLOv8n weights (~6MB) download automatically on first run.
+
+## Feed Events into the API
+
+```bash
+# Ingest the full events file at once
+python -c "
+import json, requests
+events = [json.loads(l) for l in open('data/events.jsonl')]
+for i in range(0, len(events), 500):
+    r = requests.post('http://localhost:8000/events/ingest', json={'events': events[i:i+500]})
+    print(r.json())
+"
+
+# Or replay in simulated real-time (60x speed)
+python dashboard/feed_events.py --speed 60
+```
+
+## Reset and Re-seed (clear old data)
+
+If the dashboard shows stale or unexpected data (e.g. 100% conversion, 0 dwell):
+
+```bash
+# Stop the API, then:
+del store_intelligence.db          # Windows
+python pipeline/seed_events.py     # regenerate events.jsonl
+uvicorn app.main:app --reload      # restart API (DB recreated on startup)
+python dashboard/feed_events.py --speed 60  # ingest fresh events
+```
+
+## Live Dashboard
+
+```bash
+# Terminal 1: API running
+uvicorn app.main:app --reload
+
+# Terminal 2: Feed events in simulated real-time
+python dashboard/feed_events.py --speed 60
+
+# Terminal 3: Live dashboard (updates every 3s)
+python dashboard/dashboard.py
+```
+
+Dashboard: **Rich terminal live display** (full-screen, updates every 3s)  
+API interactive docs: **http://localhost:8000/docs**  
+API base URL: **http://localhost:8000**
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/events/ingest` | Ingest up to 500 events (idempotent by event_id) |
+| GET | `/stores/{id}/metrics` | Visitors, conversion rate, dwell, queue depth |
+| GET | `/stores/{id}/funnel` | Entry → Zone → Billing → Purchase funnel |
+| GET | `/stores/{id}/heatmap` | Zone visit frequency, normalised 0–100 |
+| GET | `/stores/{id}/anomalies` | Active anomalies with severity + suggested action |
+| GET | `/health` | Service status, feed lag per store |
+
+Store ID for this dataset: `STORE_BLR_002`
+
+Example: `GET http://localhost:8000/stores/STORE_BLR_002/metrics`
+
+## Run Tests
+
+```bash
+pytest tests/ -v --cov=app --cov-report=term-missing
+```
+
+## Project Structure
+
+```
+store-intelligence/
+├── pipeline/
+│   ├── detect.py        # YOLOv8n + ByteTrack-style tracker → events
+│   ├── tracker.py       # IoU + appearance Re-ID tracker
+│   ├── emit.py          # Event schema + JSONL writer
+│   ├── seed_events.py   # Synthetic event generator (demo/testing, no clips needed)
+│   ├── run.sh           # Linux/Mac: one command to process all clips
+│   └── run.bat          # Windows: one command to process all clips
+├── app/
+│   ├── main.py          # FastAPI app + structured logging middleware
+│   ├── models.py        # Pydantic schemas
+│   ├── database.py      # SQLAlchemy + SQLite (swappable via DATABASE_URL)
+│   ├── ingestion.py     # Ingest + dedup by event_id
+│   ├── metrics.py       # Real-time metrics + POS correlation
+│   ├── funnel.py        # Conversion funnel (session-level dedup)
+│   ├── heatmap.py       # Zone heatmap normalised 0–100
+│   ├── anomalies.py     # Queue spike, conversion drop, dead zone detection
+│   └── health.py        # Health check with STALE_FEED detection
+├── dashboard/
+│   ├── dashboard.py     # Rich terminal live dashboard
+│   └── feed_events.py   # Simulated real-time event replay
+├── tests/
+│   ├── test_pipeline.py # Ingest, idempotency, funnel, heatmap, health
+│   ├── test_metrics.py  # Metrics edge cases: zero-purchase, all-staff, dwell
+│   └── test_anomalies.py# Anomaly detection: queue spike, abandonment, dead zone
+├── data/
+│   ├── store_layout.json
+│   ├── pos_transactions.csv
+│   ├── events.jsonl     # generated by seed_events.py or detect.py
+│   └── clips/           # place CAM 1.mp4–CAM 5.mp4 here (or auto-discovered)
+├── docs/
+│   ├── DESIGN.md        # Architecture + AI-assisted decisions
+│   └── CHOICES.md       # Model selection, schema design, API architecture
+├── docker-compose.yml
+├── Dockerfile
+└── requirements.txt
+```
+
+## Dataset
+
+- Store: Brigade Road, Bangalore → `STORE_BLR_002`
+- CCTV: 5 clips (CAM 1–5), 20 min each, 1080p/15fps, face-blurred
+- POS: 27 transactions from `2026-04-10`, date-shifted to today at runtime
+- Layout: 4 floor zones (SKINCARE, MAKEUP, HAIRCARE, PERSONAL_CARE) + BILLING + BILLING_QUEUE
